@@ -849,6 +849,11 @@ canvas {
         <span class="section-title">텍스트</span>
       </div>
       <div class="section-body">
+        <div class="tab-group">
+          <div class="tab on" id="tab-pos-top"    onclick="setTextPosition('top')">상단</div>
+          <div class="tab"    id="tab-pos-center" onclick="setTextPosition('center')">중앙</div>
+          <div class="tab"    id="tab-pos-bottom" onclick="setTextPosition('bottom')">하단</div>
+        </div>
         <input type="text" class="text-input" id="tTitle" placeholder="타이틀 (선택)">
         <input type="text" class="text-input" id="tWater" placeholder="워터마크 @username">
       </div>
@@ -900,6 +905,7 @@ const ctx = canvas.getContext('2d');
 
 let appMode = 'single';
 let collageDir = 'horizontal'; // 'horizontal' | 'vertical'
+let textPosition = 'top'; // 'top' | 'center' | 'bottom'
 let img = null;
 let collageImgs = [null, null, null, null];
 let collageUploadTarget = 0;
@@ -1116,6 +1122,14 @@ function setBgTab(tab) {
   render();
 }
 
+function setTextPosition(pos) {
+  textPosition = pos;
+  ['top','center','bottom'].forEach(p => {
+    document.getElementById('tab-pos-' + p).classList.toggle('on', p === pos);
+  });
+  render();
+}
+
 function setRatio(r) {
   currentRatio = r;
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('on'));
@@ -1205,6 +1219,28 @@ function applyRatio(cW, cH) {
   return { cW, cH };
 }
 
+// ── Text drawing helper ───────────────────────────────
+function drawTitleText(text, x, y) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.97)';
+  ctx.font = '800 52px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.28)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 3;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawWaterText(text, x, y) {
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '500 16px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
 // ── Render ────────────────────────────────────────────
 function render() {
   if (appMode === 'single') renderSingle();
@@ -1223,7 +1259,7 @@ function renderSingle() {
 
   const imgW = Math.round(img.width * scl);
   const imgH = Math.round(img.height * scl);
-  const titleH = title ? 90 : 0;
+  const titleH = (title && textPosition !== 'center') ? 90 : 0;
   const waterH = water ? 44 : 0;
 
   let cW = imgW + pad * 2;
@@ -1234,32 +1270,28 @@ function renderSingle() {
   canvas.height = cH;
   applyBackground(cW, cH);
 
-  const cx = Math.round((cW - imgW) / 2);
-  let cy = Math.round((cH - imgH - titleH - waterH) / 2);
+  const imgX = Math.round((cW - imgW) / 2);
+  const startY = Math.round((cH - titleH - imgH - waterH) / 2);
 
-  if (title) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.97)';
-    ctx.font = '800 52px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetY = 3;
-    ctx.fillText(title, cW / 2, cy + titleH / 2);
-    ctx.restore();
-    cy += titleH;
+  let imgY, titleCY, waterCY;
+  if (textPosition === 'top') {
+    imgY    = startY + titleH;
+    titleCY = startY + titleH / 2;
+    waterCY = imgY + imgH + waterH / 2 + 6;
+  } else if (textPosition === 'bottom') {
+    imgY    = startY;
+    titleCY = startY + imgH + titleH / 2;
+    waterCY = startY + imgH + titleH + waterH / 2 + 6;
+  } else { // center
+    imgY    = startY;
+    titleCY = startY + imgH / 2;
+    waterCY = startY + imgH + waterH / 2 + 6;
   }
 
-  drawImage(img, cx, cy, imgW, imgH, rad, sha);
-
-  if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '500 16px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(water, cW / 2, cy + imgH + waterH / 2 + 6);
-  }
+  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
+  drawImage(img, imgX, imgY, imgW, imgH, rad, sha);
+  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
+  if (water) drawWaterText(water, cW / 2, waterCY);
 }
 
 function renderCollage() {
@@ -1287,7 +1319,7 @@ function renderCollageHorizontal(activeImgs) {
   const scaledWidths = activeImgs.map(im => Math.round(im.width * (targetH / im.height)));
   const totalImgW = scaledWidths.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
 
-  const titleH = title ? 90 : 0;
+  const titleH = (title && textPosition !== 'center') ? 90 : 0;
   const waterH = water ? 44 : 0;
 
   let cW = totalImgW + pad * 2;
@@ -1298,36 +1330,32 @@ function renderCollageHorizontal(activeImgs) {
   canvas.height = cH;
   applyBackground(cW, cH);
 
-  let startX = Math.round((cW - totalImgW) / 2);
-  let startY = Math.round((cH - targetH - titleH - waterH) / 2);
+  const startX = Math.round((cW - totalImgW) / 2);
+  const baseY  = Math.round((cH - titleH - targetH - waterH) / 2);
 
-  if (title) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.97)';
-    ctx.font = '800 52px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetY = 3;
-    ctx.fillText(title, cW / 2, startY + titleH / 2);
-    ctx.restore();
-    startY += titleH;
+  let imgY, titleCY, waterCY;
+  if (textPosition === 'top') {
+    imgY    = baseY + titleH;
+    titleCY = baseY + titleH / 2;
+    waterCY = imgY + targetH + waterH / 2 + 6;
+  } else if (textPosition === 'bottom') {
+    imgY    = baseY;
+    titleCY = baseY + targetH + titleH / 2;
+    waterCY = baseY + targetH + titleH + waterH / 2 + 6;
+  } else { // center
+    imgY    = baseY;
+    titleCY = baseY + targetH / 2;
+    waterCY = baseY + targetH + waterH / 2 + 6;
   }
 
+  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
   let cx = startX;
   for (let i = 0; i < activeImgs.length; i++) {
-    drawImage(activeImgs[i], cx, startY, scaledWidths[i], targetH, rad, sha);
+    drawImage(activeImgs[i], cx, imgY, scaledWidths[i], targetH, rad, sha);
     cx += scaledWidths[i] + gap;
   }
-
-  if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '500 16px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(water, cW / 2, startY + targetH + waterH / 2 + 6);
-  }
+  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
+  if (water) drawWaterText(water, cW / 2, waterCY);
 }
 
 function renderCollageVertical(activeImgs) {
@@ -1344,7 +1372,7 @@ function renderCollageVertical(activeImgs) {
   const scaledHeights = activeImgs.map(im => Math.round(im.height * (targetW / im.width)));
   const totalImgH = scaledHeights.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
 
-  const titleH = title ? 90 : 0;
+  const titleH = (title && textPosition !== 'center') ? 90 : 0;
   const waterH = water ? 44 : 0;
 
   let cW = targetW + pad * 2;
@@ -1356,35 +1384,31 @@ function renderCollageVertical(activeImgs) {
   applyBackground(cW, cH);
 
   const startX = Math.round((cW - targetW) / 2);
-  let startY = Math.round((cH - totalImgH - titleH - waterH) / 2);
+  const baseY  = Math.round((cH - titleH - totalImgH - waterH) / 2);
 
-  if (title) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.97)';
-    ctx.font = '800 52px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetY = 3;
-    ctx.fillText(title, cW / 2, startY + titleH / 2);
-    ctx.restore();
-    startY += titleH;
+  let imgStartY, titleCY, waterCY;
+  if (textPosition === 'top') {
+    imgStartY = baseY + titleH;
+    titleCY   = baseY + titleH / 2;
+    waterCY   = imgStartY + totalImgH + waterH / 2 + 6;
+  } else if (textPosition === 'bottom') {
+    imgStartY = baseY;
+    titleCY   = baseY + totalImgH + titleH / 2;
+    waterCY   = baseY + totalImgH + titleH + waterH / 2 + 6;
+  } else { // center
+    imgStartY = baseY;
+    titleCY   = baseY + totalImgH / 2;
+    waterCY   = baseY + totalImgH + waterH / 2 + 6;
   }
 
-  let cy = startY;
+  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
+  let cy = imgStartY;
   for (let i = 0; i < activeImgs.length; i++) {
     drawImage(activeImgs[i], startX, cy, targetW, scaledHeights[i], rad, sha);
     cy += scaledHeights[i] + gap;
   }
-
-  if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '500 16px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(water, cW / 2, cy - gap + waterH / 2 + 6);
-  }
+  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
+  if (water) drawWaterText(water, cW / 2, waterCY);
 }
 
 // ── Crop ──────────────────────────────────────────────
