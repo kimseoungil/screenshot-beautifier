@@ -701,6 +701,20 @@ canvas {
   background-image: none;
   border-color: transparent;
   box-shadow: none;
+  overflow: visible; /* 그림자가 프레임에 잘리지 않도록 */
+}
+
+/* 투명 배경 선택 시 체커 패턴 복원 */
+.preview-frame.has-image.show-checker {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  overflow: hidden;
 }
 </style>
 </head>
@@ -956,7 +970,7 @@ function clearSingleImage() {
   document.getElementById('cropBtnRow').style.display = 'none';
   document.getElementById('imgRemoveBtn').style.display = 'none';
   document.getElementById('placeholder').style.display = '';
-  document.getElementById('previewFrame').classList.remove('has-image');
+  document.getElementById('previewFrame').classList.remove('has-image', 'show-checker');
   canvas.style.display = 'none';
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -1030,7 +1044,7 @@ function removeCollageImg(index) {
   collageImgs[index] = null;
   refreshSlot(index);
   if (collageImgs.every(x => x === null)) {
-    document.getElementById('previewFrame').classList.remove('has-image');
+    document.getElementById('previewFrame').classList.remove('has-image', 'show-checker');
     canvas.style.display = 'none';
     document.getElementById('placeholder').style.display = '';
   }
@@ -1098,6 +1112,7 @@ function setBgTab(tab) {
   });
   document.getElementById('gradient-panel').style.display = tab === 'gradient' ? 'block' : 'none';
   document.getElementById('solid-panel').style.display = tab === 'solid' ? 'block' : 'none';
+  updateFrameChecker();
   render();
 }
 
@@ -1120,9 +1135,16 @@ document.getElementById('tTitle').oninput = render;
 document.getElementById('tWater').oninput = render;
 
 // ── Canvas helpers ────────────────────────────────────
+function updateFrameChecker() {
+  const frame = document.getElementById('previewFrame');
+  const showChecker = frame.classList.contains('has-image') && bgTab === 'none';
+  frame.classList.toggle('show-checker', showChecker);
+}
+
 function showCanvas() {
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('previewFrame').classList.add('has-image');
+  updateFrameChecker();
   canvas.style.display = 'block';
 }
 
