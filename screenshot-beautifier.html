@@ -763,8 +763,9 @@ canvas {
             <div class="upload-hint">PNG · JPG · WebP · 클립보드 붙여넣기</div>
           </div>
           <input type="file" id="fi" accept="image/*" style="display:none">
-          <div id="cropBtnRow" style="display:none; margin-top:8px;">
+          <div id="cropBtnRow" style="display:none; margin-top:8px; flex-direction:column; gap:6px;">
             <button class="crop-action-btn" onclick="openCrop('single', 0)">✂ &nbsp;이미지 자르기</button>
+            <button class="crop-action-btn" id="cutoutBtn" onclick="runCutout()">✦ &nbsp;컷아웃 (배경 제거)</button>
           </div>
         </div>
         <div id="collage-upload" style="display:none">
@@ -954,7 +955,7 @@ function setMode(mode) {
   document.getElementById('single-upload').style.display = mode === 'single' ? 'block' : 'none';
   document.getElementById('collage-upload').style.display = mode === 'collage' ? 'block' : 'none';
   document.getElementById('gap-row').style.display = mode === 'collage' ? 'flex' : 'none';
-  document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'block' : 'none';
+  document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'flex' : 'none';
   document.getElementById('imgRemoveBtn').style.display = (mode === 'single' && img) ? 'flex' : 'none';
   render();
 }
@@ -992,7 +993,7 @@ function loadSingleFile(file) {
     const i = new Image();
     i.onload = () => {
       img = i;
-      document.getElementById('cropBtnRow').style.display = 'block';
+      document.getElementById('cropBtnRow').style.display = 'flex';
       document.getElementById('imgRemoveBtn').style.display = 'flex';
       showCanvas();
       render();
@@ -1624,6 +1625,50 @@ function initCropEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && document.getElementById('cropModal').style.display === 'flex') cancelCrop();
   });
+}
+
+// ── Cutout (배경 제거) ────────────────────────────────
+async function runCutout() {
+  if (!img) return;
+  const btn = document.getElementById('cutoutBtn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '⏳ &nbsp;AI 처리 중...';
+  btn.disabled = true;
+
+  try {
+    const { removeBackground } = await import(
+      'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/index.browser.mjs'
+    );
+
+    // 현재 이미지를 Blob으로 변환
+    const tmp = document.createElement('canvas');
+    tmp.width = img.width; tmp.height = img.height;
+    tmp.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise(r => tmp.toBlob(r, 'image/png'));
+
+    // 배경 제거
+    const resultBlob = await removeBackground(blob, {
+      publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/'
+    });
+
+    // 결과 이미지 적용
+    const url = URL.createObjectURL(resultBlob);
+    const newImg = new Image();
+    newImg.onload = () => {
+      img = newImg;
+      URL.revokeObjectURL(url);
+      render();
+      btn.innerHTML = origHTML;
+      btn.disabled = false;
+    };
+    newImg.src = url;
+
+  } catch (e) {
+    console.error(e);
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+    alert('컷아웃 실패: 첫 사용 시 인터넷 연결이 필요합니다 (AI 모델 다운로드)');
+  }
 }
 
 // ── Theme toggle ──────────────────────────────────────
