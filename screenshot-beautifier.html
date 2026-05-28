@@ -840,6 +840,10 @@ canvas {
           <div class="ctrl-label"><span>이미지 간격</span><span class="ctrl-val" id="vGap">12px</span></div>
           <input type="range" id="sGap" min="0" max="80" value="12" step="1">
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>아웃라인</span><span class="ctrl-val" id="vStr">0px</span></div>
+          <input type="range" id="sStr" min="0" max="40" value="0" step="1">
+        </div>
       </div>
     </div>
 
@@ -1144,6 +1148,7 @@ document.getElementById('sRad').oninput = function() { document.getElementById('
 document.getElementById('sSha').oninput = function() { document.getElementById('vSha').textContent = this.value; render(); };
 document.getElementById('sScl').oninput = function() { document.getElementById('vScl').textContent = this.value + '%'; render(); };
 document.getElementById('sGap').oninput = function() { document.getElementById('vGap').textContent = this.value + 'px'; render(); };
+document.getElementById('sStr').oninput = function() { document.getElementById('vStr').textContent = this.value + 'px'; render(); };
 document.getElementById('solidCol').oninput = render;
 document.getElementById('tTitle').oninput = render;
 document.getElementById('tWater').oninput = render;
@@ -1192,14 +1197,30 @@ function applyBackground(cW, cH) {
   }
 }
 
-function drawImage(image, cx, cy, iw, ih, rad, sha) {
+function drawImage(image, cx, cy, iw, ih, rad, sha, str) {
+  str = str || 0;
+  // 아웃라인이 있으면 그 영역 기준으로 그림자 적용
+  const ox = cx - str, oy = cy - str;
+  const ow = iw + str * 2, oh = ih + str * 2;
+  const or = rad + str;
+
   if (sha > 0) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
     ctx.shadowBlur = sha;
     ctx.shadowOffsetY = Math.round(sha * 0.3);
     ctx.fillStyle = '#fff';
-    drawRoundRect(ctx, cx, cy, iw, ih, rad);
+    drawRoundRect(ctx, str > 0 ? ox : cx, str > 0 ? oy : cy,
+                       str > 0 ? ow : iw, str > 0 ? oh : ih,
+                       str > 0 ? or : rad);
+    ctx.fill();
+    ctx.restore();
+  }
+  // 흰색 아웃라인 (스티커 효과)
+  if (str > 0) {
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    drawRoundRect(ctx, ox, oy, ow, oh, or);
     ctx.fill();
     ctx.restore();
   }
@@ -1288,8 +1309,9 @@ function renderSingle() {
     waterCY = startY + imgH + waterH / 2 + 6;
   }
 
+  const str = getVal('sStr');
   if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
-  drawImage(img, imgX, imgY, imgW, imgH, rad, sha);
+  drawImage(img, imgX, imgY, imgW, imgH, rad, sha, str);
   if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
   if (water) drawWaterText(water, cW / 2, waterCY);
 }
@@ -1348,10 +1370,11 @@ function renderCollageHorizontal(activeImgs) {
     waterCY = baseY + targetH + waterH / 2 + 6;
   }
 
+  const str = getVal('sStr');
   if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
   let cx = startX;
   for (let i = 0; i < activeImgs.length; i++) {
-    drawImage(activeImgs[i], cx, imgY, scaledWidths[i], targetH, rad, sha);
+    drawImage(activeImgs[i], cx, imgY, scaledWidths[i], targetH, rad, sha, str);
     cx += scaledWidths[i] + gap;
   }
   if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
@@ -1401,10 +1424,11 @@ function renderCollageVertical(activeImgs) {
     waterCY   = baseY + totalImgH + waterH / 2 + 6;
   }
 
+  const str = getVal('sStr');
   if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
   let cy = imgStartY;
   for (let i = 0; i < activeImgs.length; i++) {
-    drawImage(activeImgs[i], startX, cy, targetW, scaledHeights[i], rad, sha);
+    drawImage(activeImgs[i], startX, cy, targetW, scaledHeights[i], rad, sha, str);
     cy += scaledHeights[i] + gap;
   }
   if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
