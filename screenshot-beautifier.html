@@ -694,6 +694,14 @@ canvas {
   backdrop-filter: blur(4px);
 }
 .img-remove-btn:hover { background: rgba(210,45,45,0.85); transform: scale(1.1); }
+
+/* ── Preview frame: hide checker when image is loaded ── */
+.preview-frame.has-image {
+  background: transparent;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: none;
+}
 </style>
 </head>
 <body>
@@ -948,6 +956,7 @@ function clearSingleImage() {
   document.getElementById('cropBtnRow').style.display = 'none';
   document.getElementById('imgRemoveBtn').style.display = 'none';
   document.getElementById('placeholder').style.display = '';
+  document.getElementById('previewFrame').classList.remove('has-image');
   canvas.style.display = 'none';
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -1020,6 +1029,11 @@ function triggerCollageUpload(index) {
 function removeCollageImg(index) {
   collageImgs[index] = null;
   refreshSlot(index);
+  if (collageImgs.every(x => x === null)) {
+    document.getElementById('previewFrame').classList.remove('has-image');
+    canvas.style.display = 'none';
+    document.getElementById('placeholder').style.display = '';
+  }
   render();
 }
 
@@ -1108,6 +1122,7 @@ document.getElementById('tWater').oninput = render;
 // ── Canvas helpers ────────────────────────────────────
 function showCanvas() {
   document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('previewFrame').classList.add('has-image');
   canvas.style.display = 'block';
 }
 
