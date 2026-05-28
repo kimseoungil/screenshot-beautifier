@@ -672,6 +672,28 @@ canvas {
   cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s;
 }
 .crop-apply-btn:hover { opacity: 0.8; }
+
+/* ── Single image remove button ── */
+.img-remove-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  background: rgba(0,0,0,0.45);
+  border: none;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.15s, transform 0.15s;
+  backdrop-filter: blur(4px);
+}
+.img-remove-btn:hover { background: rgba(210,45,45,0.85); transform: scale(1.1); }
 </style>
 </head>
 <body>
@@ -684,6 +706,7 @@ canvas {
       <small>드래그 앤 드롭 · 클립보드 Cmd+V</small>
     </div>
     <canvas id="cv" style="display:none"></canvas>
+    <button class="img-remove-btn" id="imgRemoveBtn" onclick="clearSingleImage()">✕</button>
   </div>
 </div>
 
@@ -718,9 +741,8 @@ canvas {
             <div class="upload-hint">PNG · JPG · WebP · 클립보드 붙여넣기</div>
           </div>
           <input type="file" id="fi" accept="image/*" style="display:none">
-          <div id="cropBtnRow" style="display:none; margin-top:8px; gap:6px;">
-            <button class="crop-action-btn" onclick="openCrop('single', 0)" style="flex:1">✂ &nbsp;이미지 자르기</button>
-            <button class="crop-action-btn" onclick="clearSingleImage()" style="flex:1; color:#e05555;">✕ &nbsp;이미지 삭제</button>
+          <div id="cropBtnRow" style="display:none; margin-top:8px;">
+            <button class="crop-action-btn" onclick="openCrop('single', 0)">✂ &nbsp;이미지 자르기</button>
           </div>
         </div>
         <div id="collage-upload" style="display:none">
@@ -900,7 +922,8 @@ function setMode(mode) {
   document.getElementById('single-upload').style.display = mode === 'single' ? 'block' : 'none';
   document.getElementById('collage-upload').style.display = mode === 'collage' ? 'block' : 'none';
   document.getElementById('gap-row').style.display = mode === 'collage' ? 'flex' : 'none';
-  document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'flex' : 'none';
+  document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'block' : 'none';
+  document.getElementById('imgRemoveBtn').style.display = (mode === 'single' && img) ? 'flex' : 'none';
   render();
 }
 
@@ -923,6 +946,7 @@ fi.onchange = e => { loadSingleFile(e.target.files[0]); e.target.value = ''; };
 function clearSingleImage() {
   img = null;
   document.getElementById('cropBtnRow').style.display = 'none';
+  document.getElementById('imgRemoveBtn').style.display = 'none';
   document.getElementById('placeholder').style.display = '';
   canvas.style.display = 'none';
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -935,7 +959,8 @@ function loadSingleFile(file) {
     const i = new Image();
     i.onload = () => {
       img = i;
-      document.getElementById('cropBtnRow').style.display = 'flex';
+      document.getElementById('cropBtnRow').style.display = 'block';
+      document.getElementById('imgRemoveBtn').style.display = 'flex';
       showCanvas();
       render();
     };
