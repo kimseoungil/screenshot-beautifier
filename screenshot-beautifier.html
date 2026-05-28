@@ -1637,7 +1637,7 @@ async function runCutout() {
 
   try {
     const { removeBackground } = await import(
-      'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/index.browser.mjs'
+      'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs'
     );
 
     // 현재 이미지를 Blob으로 변환
@@ -1648,7 +1648,7 @@ async function runCutout() {
 
     // 배경 제거
     const resultBlob = await removeBackground(blob, {
-      publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/'
+      publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/'
     });
 
     // 결과 이미지 적용
@@ -1664,10 +1664,10 @@ async function runCutout() {
     newImg.src = url;
 
   } catch (e) {
-    console.error(e);
+    console.error('컷아웃 오류:', e);
     btn.innerHTML = origHTML;
     btn.disabled = false;
-    alert('컷아웃 실패: 첫 사용 시 인터넷 연결이 필요합니다 (AI 모델 다운로드)');
+    alert('컷아웃 오류:\n' + (e?.message || String(e)));
   }
 }
 
