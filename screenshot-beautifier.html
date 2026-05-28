@@ -1223,8 +1223,8 @@ function renderSingle() {
 
   const imgW = Math.round(img.width * scl);
   const imgH = Math.round(img.height * scl);
-  const titleH = title ? 60 : 0;
-  const waterH = water ? 36 : 0;
+  const titleH = title ? 90 : 0;
+  const waterH = water ? 44 : 0;
 
   let cW = imgW + pad * 2;
   let cH = imgH + pad * 2 + titleH + waterH;
@@ -1238,19 +1238,24 @@ function renderSingle() {
   let cy = Math.round((cH - imgH - titleH - waterH) / 2);
 
   if (title) {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '500 20px DM Sans, sans-serif';
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx.font = '800 52px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 3;
     ctx.fillText(title, cW / 2, cy + titleH / 2);
+    ctx.restore();
     cy += titleH;
   }
 
   drawImage(img, cx, cy, imgW, imgH, rad, sha);
 
   if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '400 12px DM Mono, monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '500 16px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(water, cW / 2, cy + imgH + waterH / 2 + 6);
@@ -1282,8 +1287,8 @@ function renderCollageHorizontal(activeImgs) {
   const scaledWidths = activeImgs.map(im => Math.round(im.width * (targetH / im.height)));
   const totalImgW = scaledWidths.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
 
-  const titleH = title ? 60 : 0;
-  const waterH = water ? 36 : 0;
+  const titleH = title ? 90 : 0;
+  const waterH = water ? 44 : 0;
 
   let cW = totalImgW + pad * 2;
   let cH = targetH + pad * 2 + titleH + waterH;
@@ -1297,11 +1302,16 @@ function renderCollageHorizontal(activeImgs) {
   let startY = Math.round((cH - targetH - titleH - waterH) / 2);
 
   if (title) {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '500 20px DM Sans, sans-serif';
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx.font = '800 52px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 3;
     ctx.fillText(title, cW / 2, startY + titleH / 2);
+    ctx.restore();
     startY += titleH;
   }
 
@@ -1312,8 +1322,8 @@ function renderCollageHorizontal(activeImgs) {
   }
 
   if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '400 12px DM Mono, monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '500 16px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(water, cW / 2, startY + targetH + waterH / 2 + 6);
@@ -1334,8 +1344,8 @@ function renderCollageVertical(activeImgs) {
   const scaledHeights = activeImgs.map(im => Math.round(im.height * (targetW / im.width)));
   const totalImgH = scaledHeights.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
 
-  const titleH = title ? 60 : 0;
-  const waterH = water ? 36 : 0;
+  const titleH = title ? 90 : 0;
+  const waterH = water ? 44 : 0;
 
   let cW = targetW + pad * 2;
   let cH = totalImgH + pad * 2 + titleH + waterH;
@@ -1349,11 +1359,16 @@ function renderCollageVertical(activeImgs) {
   let startY = Math.round((cH - totalImgH - titleH - waterH) / 2);
 
   if (title) {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '500 20px DM Sans, sans-serif';
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx.font = '800 52px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 3;
     ctx.fillText(title, cW / 2, startY + titleH / 2);
+    ctx.restore();
     startY += titleH;
   }
 
@@ -1364,8 +1379,8 @@ function renderCollageVertical(activeImgs) {
   }
 
   if (water) {
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '400 12px DM Mono, monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '500 16px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(water, cW / 2, cy - gap + waterH / 2 + 6);
