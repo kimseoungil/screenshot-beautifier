@@ -1208,31 +1208,57 @@ function applyBackground(cW, cH) {
 
 function drawImage(image, cx, cy, iw, ih, rad, sha, str) {
   str = str || 0;
-  // 아웃라인이 있으면 그 영역 기준으로 그림자 적용
-  const ox = cx - str, oy = cy - str;
-  const ow = iw + str * 2, oh = ih + str * 2;
-  const or = rad + str;
 
+  // 이미지 실제 모양을 따른 흰색 실루엣 캔버스 생성
+  function makeSil() {
+    const s = document.createElement('canvas');
+    s.width = iw; s.height = ih;
+    const c = s.getContext('2d');
+    if (rad > 0) { drawRoundRect(c, 0, 0, iw, ih, rad); c.clip(); }
+    c.drawImage(image, 0, 0, iw, ih);
+    c.globalCompositeOperation = 'source-in';
+    c.fillStyle = '#fff';
+    c.fillRect(0, 0, iw, ih);
+    return s;
+  }
+
+  // 그림자 - 이미지 실제 모양 기준
   if (sha > 0) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
     ctx.shadowBlur = sha;
     ctx.shadowOffsetY = Math.round(sha * 0.3);
-    ctx.fillStyle = '#fff';
-    drawRoundRect(ctx, str > 0 ? ox : cx, str > 0 ? oy : cy,
-                       str > 0 ? ow : iw, str > 0 ? oh : ih,
-                       str > 0 ? or : rad);
-    ctx.fill();
+    if (str > 0) {
+      // 아웃라인 확장 실루엣을 오프스크린에 합쳐 단번에 그림자 적용
+      const sil = makeSil();
+      const steps = Math.max(16, Math.ceil(2 * Math.PI * str));
+      const pad = str + sha;
+      const off = document.createElement('canvas');
+      off.width = iw + pad * 2; off.height = ih + pad * 2;
+      const oCtx = off.getContext('2d');
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        oCtx.drawImage(sil, pad + Math.cos(a) * str, pad + Math.sin(a) * str, iw, ih);
+      }
+      oCtx.drawImage(sil, pad, pad, iw, ih);
+      ctx.drawImage(off, cx - pad, cy - pad);
+    } else {
+      ctx.drawImage(makeSil(), cx, cy);
+    }
     ctx.restore();
   }
-  // 흰색 아웃라인 (스티커 효과)
+
+  // 흰색 아웃라인 - 이미지 실제 모양을 따라 그림
   if (str > 0) {
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    drawRoundRect(ctx, ox, oy, ow, oh, or);
-    ctx.fill();
-    ctx.restore();
+    const sil = makeSil();
+    const steps = Math.max(16, Math.ceil(2 * Math.PI * str));
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      ctx.drawImage(sil, cx + Math.cos(a) * str, cy + Math.sin(a) * str, iw, ih);
+    }
   }
+
+  // 이미지 클립하여 그리기
   ctx.save();
   drawRoundRect(ctx, cx, cy, iw, ih, rad);
   ctx.clip();
