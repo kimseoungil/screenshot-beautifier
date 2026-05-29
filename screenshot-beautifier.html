@@ -266,6 +266,11 @@ body.sidebar-collapsed .sidebar {
 }
 .cslot-remove:hover { background: rgba(200,40,40,0.85); }
 
+/* ── Collage per-image text ── */
+.ctext-item { margin-bottom: 10px; }
+.ctext-item:last-child { margin-bottom: 0; }
+.ctext-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+
 /* ── Gradient grid ── */
 .gp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 
@@ -862,13 +867,11 @@ canvas {
         <span class="section-title">텍스트</span>
       </div>
       <div class="section-body">
-        <div class="tab-group">
-          <div class="tab on" id="tab-pos-top"    onclick="setTextPosition('top')">상단</div>
-          <div class="tab"    id="tab-pos-center" onclick="setTextPosition('center')">중앙</div>
-          <div class="tab"    id="tab-pos-bottom" onclick="setTextPosition('bottom')">하단</div>
+        <div id="single-text-inputs">
+          <input type="text" class="text-input" id="tTitle" placeholder="타이틀 (선택)">
+          <input type="text" class="text-input" id="tWater" placeholder="워터마크 @username">
         </div>
-        <input type="text" class="text-input" id="tTitle" placeholder="타이틀 (선택)">
-        <input type="text" class="text-input" id="tWater" placeholder="워터마크 @username">
+        <div id="collage-text-area" style="display:none"></div>
       </div>
     </div>
 
@@ -918,9 +921,10 @@ const ctx = canvas.getContext('2d');
 
 let appMode = 'single';
 let collageDir = 'horizontal'; // 'horizontal' | 'vertical'
-let textPosition = 'top'; // 'top' | 'center' | 'bottom'
 let img = null;
 let collageImgs = [null, null, null, null];
+let collageTitles = ['', '', '', ''];
+let collageWaters = ['', '', '', ''];
 let collageUploadTarget = 0;
 let bgTab = 'gradient';
 let currentGradient = 0;
@@ -965,6 +969,9 @@ function setMode(mode) {
   document.getElementById('gap-row').style.display = mode === 'collage' ? 'flex' : 'none';
   document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'flex' : 'none';
   document.getElementById('imgRemoveBtn').style.display = (mode === 'single' && img) ? 'flex' : 'none';
+  document.getElementById('single-text-inputs').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('collage-text-area').style.display = mode === 'collage' ? 'block' : 'none';
+  if (mode === 'collage') updateCollageTextSection();
   render();
 }
 
@@ -1061,7 +1068,10 @@ function triggerCollageUpload(index) {
 
 function removeCollageImg(index) {
   collageImgs[index] = null;
+  collageTitles[index] = '';
+  collageWaters[index] = '';
   refreshSlot(index);
+  updateCollageTextSection();
   if (collageImgs.every(x => x === null)) {
     document.getElementById('previewFrame').classList.remove('has-image', 'show-checker');
     canvas.style.display = 'none';
@@ -1083,6 +1093,7 @@ function loadCollageFile(file, index) {
     i.onload = () => {
       collageImgs[index] = i;
       refreshSlot(index);
+      updateCollageTextSection();
       showCanvas();
       render();
     };
@@ -1135,12 +1146,24 @@ function setBgTab(tab) {
   render();
 }
 
-function setTextPosition(pos) {
-  textPosition = pos;
-  ['top','center','bottom'].forEach(p => {
-    document.getElementById('tab-pos-' + p).classList.toggle('on', p === pos);
-  });
-  render();
+function updateCollageTextSection() {
+  const area = document.getElementById('collage-text-area');
+  area.innerHTML = '';
+  let labelIdx = 0;
+  for (let i = 0; i < 4; i++) {
+    if (!collageImgs[i]) continue;
+    labelIdx++;
+    const div = document.createElement('div');
+    div.className = 'ctext-item';
+    div.innerHTML = `
+      <div class="ctext-label">이미지 ${labelIdx}</div>
+      <input type="text" class="text-input" id="cTitle${i}" placeholder="타이틀 (선택)" value="${collageTitles[i]}">
+      <input type="text" class="text-input" id="cWater${i}" placeholder="워터마크 @username" value="${collageWaters[i]}">
+    `;
+    area.appendChild(div);
+    document.getElementById(`cTitle${i}`).oninput = function() { collageTitles[i] = this.value; render(); };
+    document.getElementById(`cWater${i}`).oninput = function() { collageWaters[i] = this.value; render(); };
+  }
 }
 
 function setRatio(r) {
@@ -1297,6 +1320,19 @@ function drawWaterText(text, x, y) {
   ctx.fillText(text, x, y);
 }
 
+// 이미지 중앙에 타이틀 + 워터마크 오버레이
+function drawOverlayText(title, water, cx, cy) {
+  if (!title && !water) return;
+  if (title && water) {
+    drawTitleText(title, cx, cy - 22);
+    drawWaterText(water, cx, cy + 32);
+  } else if (title) {
+    drawTitleText(title, cx, cy);
+  } else {
+    drawWaterText(water, cx, cy);
+  }
+}
+
 // ── Render ────────────────────────────────────────────
 function render() {
   if (appMode === 'single') renderSingle();
@@ -1310,16 +1346,15 @@ function renderSingle() {
   const rad = getVal('sRad');
   const sha = getVal('sSha');
   const scl = getVal('sScl') / 100;
+  const str = getVal('sStr');
   const title = document.getElementById('tTitle').value;
   const water = document.getElementById('tWater').value;
 
   const imgW = Math.round(img.width * scl);
   const imgH = Math.round(img.height * scl);
-  const titleH = (title && textPosition !== 'center') ? 90 : 0;
-  const waterH = water ? 44 : 0;
 
   let cW = imgW + pad * 2;
-  let cH = imgH + pad * 2 + titleH + waterH;
+  let cH = imgH + pad * 2;
   ({ cW, cH } = applyRatio(cW, cH));
 
   canvas.width = cW;
@@ -1327,60 +1362,38 @@ function renderSingle() {
   applyBackground(cW, cH);
 
   const imgX = Math.round((cW - imgW) / 2);
-  const startY = Math.round((cH - titleH - imgH - waterH) / 2);
+  const imgY = Math.round((cH - imgH) / 2);
 
-  let imgY, titleCY, waterCY;
-  if (textPosition === 'top') {
-    imgY    = startY + titleH;
-    titleCY = startY + titleH / 2;
-    waterCY = imgY + imgH + waterH / 2 + 6;
-  } else if (textPosition === 'bottom') {
-    imgY    = startY;
-    titleCY = startY + imgH + titleH / 2;
-    waterCY = startY + imgH + titleH + waterH / 2 + 6;
-  } else { // center
-    imgY    = startY;
-    titleCY = startY + imgH / 2;
-    waterCY = startY + imgH + waterH / 2 + 6;
-  }
-
-  const str = getVal('sStr');
-  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
   drawImage(img, imgX, imgY, imgW, imgH, rad, sha, str);
-  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
-  if (water) drawWaterText(water, cW / 2, waterCY);
+  drawOverlayText(title, water, imgX + imgW / 2, imgY + imgH / 2);
 }
 
 function renderCollage() {
-  const activeImgs = collageImgs.filter(Boolean);
-  if (activeImgs.length === 0) return;
+  const activeSlots = collageImgs.reduce((acc, img, i) => img ? [...acc, i] : acc, []);
+  if (activeSlots.length === 0) return;
 
   if (collageDir === 'vertical') {
-    renderCollageVertical(activeImgs);
+    renderCollageVertical(activeSlots);
   } else {
-    renderCollageHorizontal(activeImgs);
+    renderCollageHorizontal(activeSlots);
   }
 }
 
-function renderCollageHorizontal(activeImgs) {
+function renderCollageHorizontal(activeSlots) {
   const pad = getVal('sPad');
   const rad = getVal('sRad');
   const sha = getVal('sSha');
   const scl = getVal('sScl') / 100;
   const gap = getVal('sGap');
-  const title = document.getElementById('tTitle').value;
-  const water = document.getElementById('tWater').value;
+  const str = getVal('sStr');
 
-  // 모든 이미지를 첫 번째 이미지 높이 기준으로 같은 높이로 맞춤
-  const targetH = Math.round(activeImgs[0].height * scl);
-  const scaledWidths = activeImgs.map(im => Math.round(im.width * (targetH / im.height)));
-  const totalImgW = scaledWidths.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
-
-  const titleH = (title && textPosition !== 'center') ? 90 : 0;
-  const waterH = water ? 44 : 0;
+  const imgs = activeSlots.map(i => collageImgs[i]);
+  const targetH = Math.round(imgs[0].height * scl);
+  const scaledWidths = imgs.map(im => Math.round(im.width * (targetH / im.height)));
+  const totalImgW = scaledWidths.reduce((a, b) => a + b, 0) + gap * (imgs.length - 1);
 
   let cW = totalImgW + pad * 2;
-  let cH = targetH + pad * 2 + titleH + waterH;
+  let cH = targetH + pad * 2;
   ({ cW, cH } = applyRatio(cW, cH));
 
   canvas.width = cW;
@@ -1388,53 +1401,32 @@ function renderCollageHorizontal(activeImgs) {
   applyBackground(cW, cH);
 
   const startX = Math.round((cW - totalImgW) / 2);
-  const baseY  = Math.round((cH - titleH - targetH - waterH) / 2);
+  const imgY   = Math.round((cH - targetH) / 2);
 
-  let imgY, titleCY, waterCY;
-  if (textPosition === 'top') {
-    imgY    = baseY + titleH;
-    titleCY = baseY + titleH / 2;
-    waterCY = imgY + targetH + waterH / 2 + 6;
-  } else if (textPosition === 'bottom') {
-    imgY    = baseY;
-    titleCY = baseY + targetH + titleH / 2;
-    waterCY = baseY + targetH + titleH + waterH / 2 + 6;
-  } else { // center
-    imgY    = baseY;
-    titleCY = baseY + targetH / 2;
-    waterCY = baseY + targetH + waterH / 2 + 6;
-  }
-
-  const str = getVal('sStr');
-  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
   let cx = startX;
-  for (let i = 0; i < activeImgs.length; i++) {
-    drawImage(activeImgs[i], cx, imgY, scaledWidths[i], targetH, rad, sha, str);
-    cx += scaledWidths[i] + gap;
+  for (let n = 0; n < imgs.length; n++) {
+    const si = activeSlots[n];
+    drawImage(imgs[n], cx, imgY, scaledWidths[n], targetH, rad, sha, str);
+    drawOverlayText(collageTitles[si], collageWaters[si], cx + scaledWidths[n] / 2, imgY + targetH / 2);
+    cx += scaledWidths[n] + gap;
   }
-  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
-  if (water) drawWaterText(water, cW / 2, waterCY);
 }
 
-function renderCollageVertical(activeImgs) {
+function renderCollageVertical(activeSlots) {
   const pad = getVal('sPad');
   const rad = getVal('sRad');
   const sha = getVal('sSha');
   const scl = getVal('sScl') / 100;
   const gap = getVal('sGap');
-  const title = document.getElementById('tTitle').value;
-  const water = document.getElementById('tWater').value;
+  const str = getVal('sStr');
 
-  // 모든 이미지를 첫 번째 이미지 너비 기준으로 같은 너비로 맞춤
-  const targetW = Math.round(activeImgs[0].width * scl);
-  const scaledHeights = activeImgs.map(im => Math.round(im.height * (targetW / im.width)));
-  const totalImgH = scaledHeights.reduce((a, b) => a + b, 0) + gap * (activeImgs.length - 1);
-
-  const titleH = (title && textPosition !== 'center') ? 90 : 0;
-  const waterH = water ? 44 : 0;
+  const imgs = activeSlots.map(i => collageImgs[i]);
+  const targetW = Math.round(imgs[0].width * scl);
+  const scaledHeights = imgs.map(im => Math.round(im.height * (targetW / im.width)));
+  const totalImgH = scaledHeights.reduce((a, b) => a + b, 0) + gap * (imgs.length - 1);
 
   let cW = targetW + pad * 2;
-  let cH = totalImgH + pad * 2 + titleH + waterH;
+  let cH = totalImgH + pad * 2;
   ({ cW, cH } = applyRatio(cW, cH));
 
   canvas.width = cW;
@@ -1442,32 +1434,14 @@ function renderCollageVertical(activeImgs) {
   applyBackground(cW, cH);
 
   const startX = Math.round((cW - targetW) / 2);
-  const baseY  = Math.round((cH - titleH - totalImgH - waterH) / 2);
+  let cy = Math.round((cH - totalImgH) / 2);
 
-  let imgStartY, titleCY, waterCY;
-  if (textPosition === 'top') {
-    imgStartY = baseY + titleH;
-    titleCY   = baseY + titleH / 2;
-    waterCY   = imgStartY + totalImgH + waterH / 2 + 6;
-  } else if (textPosition === 'bottom') {
-    imgStartY = baseY;
-    titleCY   = baseY + totalImgH + titleH / 2;
-    waterCY   = baseY + totalImgH + titleH + waterH / 2 + 6;
-  } else { // center
-    imgStartY = baseY;
-    titleCY   = baseY + totalImgH / 2;
-    waterCY   = baseY + totalImgH + waterH / 2 + 6;
+  for (let n = 0; n < imgs.length; n++) {
+    const si = activeSlots[n];
+    drawImage(imgs[n], startX, cy, targetW, scaledHeights[n], rad, sha, str);
+    drawOverlayText(collageTitles[si], collageWaters[si], startX + targetW / 2, cy + scaledHeights[n] / 2);
+    cy += scaledHeights[n] + gap;
   }
-
-  const str = getVal('sStr');
-  if (title && textPosition === 'top') drawTitleText(title, cW / 2, titleCY);
-  let cy = imgStartY;
-  for (let i = 0; i < activeImgs.length; i++) {
-    drawImage(activeImgs[i], startX, cy, targetW, scaledHeights[i], rad, sha, str);
-    cy += scaledHeights[i] + gap;
-  }
-  if (title && textPosition !== 'top') drawTitleText(title, cW / 2, titleCY);
-  if (water) drawWaterText(water, cW / 2, waterCY);
 }
 
 // ── Crop ──────────────────────────────────────────────
