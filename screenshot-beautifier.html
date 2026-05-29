@@ -1326,37 +1326,39 @@ function applyRatio(cW, cH) {
 }
 
 // ── Text drawing helper ───────────────────────────────
-function drawTitleText(text, x, y) {
+function drawTitleText(text, x, y, size) {
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.97)';
-  ctx.font = '800 52px DM Sans, sans-serif';
+  ctx.font = `800 ${size}px DM Sans, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.28)';
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 3;
+  ctx.shadowBlur = size * 0.25;
+  ctx.shadowOffsetY = size * 0.06;
   ctx.fillText(text, x, y);
   ctx.restore();
 }
 
-function drawWaterText(text, x, y) {
+function drawWaterText(text, x, y, size) {
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = '500 16px DM Sans, sans-serif';
+  ctx.font = `500 ${size}px DM Sans, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y);
 }
 
-// 이미지 중앙에 타이틀 + 워터마크 오버레이
-function drawOverlayText(title, water, cx, cy) {
+// 이미지 중앙에 타이틀 + 워터마크 오버레이 (이미지 크기에 비례)
+function drawOverlayText(title, water, cx, cy, imgW, imgH) {
   if (!title && !water) return;
+  const titleSize = Math.max(30, Math.min(120, Math.round(imgH * 0.15)));
+  const waterSize = Math.max(13, Math.min(32, Math.round(imgH * 0.055)));
   if (title && water) {
-    drawTitleText(title, cx, cy - 22);
-    drawWaterText(water, cx, cy + 32);
+    drawTitleText(title, cx, cy - titleSize * 0.35, titleSize);
+    drawWaterText(water, cx, cy + titleSize * 0.6, waterSize);
   } else if (title) {
-    drawTitleText(title, cx, cy);
+    drawTitleText(title, cx, cy, titleSize);
   } else {
-    drawWaterText(water, cx, cy);
+    drawWaterText(water, cx, cy, waterSize);
   }
 }
 
@@ -1392,7 +1394,7 @@ function renderSingle() {
   const imgY = Math.round((cH - imgH) / 2);
 
   drawImage(img, imgX, imgY, imgW, imgH, rad, sha, str);
-  drawOverlayText(title, water, imgX + imgW / 2, imgY + imgH / 2);
+  drawOverlayText(title, water, imgX + imgW / 2, imgY + imgH / 2, imgW, imgH);
 }
 
 function renderCollage() {
@@ -1434,7 +1436,7 @@ function renderCollageHorizontal(activeSlots) {
   for (let n = 0; n < imgs.length; n++) {
     const si = activeSlots[n];
     drawImage(imgs[n], cx, imgY, scaledWidths[n], targetH, rad, sha, str);
-    drawOverlayText(collageTitles[si], collageWaters[si], cx + scaledWidths[n] / 2, imgY + targetH / 2);
+    drawOverlayText(collageTitles[si], collageWaters[si], cx + scaledWidths[n] / 2, imgY + targetH / 2, scaledWidths[n], targetH);
     cx += scaledWidths[n] + gap;
   }
 }
@@ -1466,7 +1468,7 @@ function renderCollageVertical(activeSlots) {
   for (let n = 0; n < imgs.length; n++) {
     const si = activeSlots[n];
     drawImage(imgs[n], startX, cy, targetW, scaledHeights[n], rad, sha, str);
-    drawOverlayText(collageTitles[si], collageWaters[si], startX + targetW / 2, cy + scaledHeights[n] / 2);
+    drawOverlayText(collageTitles[si], collageWaters[si], startX + targetW / 2, cy + scaledHeights[n] / 2, targetW, scaledHeights[n]);
     cy += scaledHeights[n] + gap;
   }
 }
