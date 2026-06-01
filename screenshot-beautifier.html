@@ -550,6 +550,19 @@ canvas {
   transition: background 0.15s;
 }
 .cslot-crop:hover { background: rgba(50,100,220,0.85); }
+.cslot-rotate {
+  width: 18px; height: 18px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cslot-rotate:hover { background: rgba(30,160,80,0.85); }
 
 /* ── Crop modal ── */
 .crop-modal {
@@ -778,6 +791,7 @@ canvas {
           <input type="file" id="fi" accept="image/*" style="display:none">
           <div id="cropBtnRow" style="display:none; margin-top:8px; flex-direction:column; gap:6px;">
             <button class="crop-action-btn" onclick="openCrop('single', 0)">✂ &nbsp;이미지 자르기</button>
+            <button class="crop-action-btn" onclick="rotateSingle()">↻ &nbsp;이미지 회전</button>
             <button class="crop-action-btn" id="cutoutBtn" onclick="runCutout()">✦ &nbsp;컷아웃 (배경 제거)</button>
           </div>
         </div>
@@ -991,6 +1005,30 @@ zone.ondragleave = () => zone.classList.remove('drag');
 zone.ondrop = e => { e.preventDefault(); zone.classList.remove('drag'); loadSingleFile(e.dataTransfer.files[0]); };
 fi.onchange = e => { loadSingleFile(e.target.files[0]); e.target.value = ''; };
 
+function rotateImageData(source, onDone) {
+  const c = document.createElement('canvas');
+  c.width = source.height;
+  c.height = source.width;
+  const ctx2 = c.getContext('2d');
+  ctx2.translate(c.width / 2, c.height / 2);
+  ctx2.rotate(Math.PI / 2);
+  ctx2.drawImage(source, -source.width / 2, -source.height / 2);
+  const newImg = new Image();
+  newImg.isCutout = source.isCutout || false;
+  newImg.onload = () => onDone(newImg);
+  newImg.src = c.toDataURL('image/png');
+}
+
+function rotateSingle() {
+  if (!img) return;
+  rotateImageData(img, newImg => { img = newImg; render(); });
+}
+
+function rotateCollageImg(index) {
+  if (!collageImgs[index]) return;
+  rotateImageData(collageImgs[index], newImg => { collageImgs[index] = newImg; render(); });
+}
+
 function clearSingleImage() {
   img = null;
   document.getElementById('cropBtnRow').style.display = 'none';
@@ -1041,6 +1079,7 @@ function refreshSlot(i) {
     slot.onclick = null;
     slot.innerHTML = `<div class="cslot-btns">
       <div class="cslot-crop"   onclick="event.stopPropagation(); openCrop('collage',${i})">✂</div>
+      <div class="cslot-rotate" onclick="event.stopPropagation(); rotateCollageImg(${i})">↻</div>
       <div class="cslot-remove" onclick="event.stopPropagation(); removeCollageImg(${i})">×</div>
     </div>`;
   } else {
