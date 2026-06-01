@@ -266,6 +266,15 @@ body.sidebar-collapsed .sidebar {
 }
 .cslot-remove:hover { background: rgba(200,40,40,0.85); }
 
+/* ── Batch mode ── */
+.batch-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; max-height: 220px; overflow-y: auto; }
+.batch-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 8px; padding: 5px 8px; }
+.batch-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
+.batch-name { flex: 1; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'DM Mono', monospace; }
+.batch-remove { width: 18px; height: 18px; border-radius: 50%; background: transparent; border: none; cursor: pointer; color: var(--text3); font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; }
+.batch-remove:hover { color: #c82828; }
+.batch-count { font-size: 11px; color: var(--text3); text-align: center; margin-top: 5px; font-family: 'DM Mono', monospace; }
+
 /* ── Collage per-image text ── */
 .ctext-item { margin-bottom: 10px; }
 .ctext-item:last-child { margin-bottom: 0; }
@@ -802,6 +811,7 @@ canvas {
         <div class="tab-group">
           <div class="tab on" id="tab-mode-single" onclick="setMode('single')">단일</div>
           <div class="tab" id="tab-mode-collage" onclick="setMode('collage')">콜라주</div>
+          <div class="tab" id="tab-mode-batch" onclick="setMode('batch')">배치</div>
         </div>
         <div id="single-upload">
           <div class="upload-zone" id="zone">
@@ -815,6 +825,16 @@ canvas {
             <button class="crop-action-btn" onclick="rotateSingle()">↻ &nbsp;이미지 회전</button>
             <button class="crop-action-btn" id="cutoutBtn" onclick="runCutout()">✦ &nbsp;컷아웃 (배경 제거)</button>
           </div>
+        </div>
+        <div id="batch-upload" style="display:none">
+          <div class="upload-zone" id="batch-zone">
+            <div class="upload-icon">↑</div>
+            <div class="upload-text">여러 이미지 한꺼번에 선택</div>
+            <div class="upload-hint">PNG · JPG · WebP · 다중 선택 가능</div>
+          </div>
+          <input type="file" id="fi-batch" accept="image/*" multiple style="display:none">
+          <div id="batch-list" class="batch-list"></div>
+          <div id="batch-count" class="batch-count" style="display:none"></div>
         </div>
         <div id="collage-upload" style="display:none">
           <div class="tab-group">
@@ -924,6 +944,7 @@ canvas {
 
   <div class="sidebar-footer">
     <button class="dl-btn" id="dlBtn">PNG 저장</button>
+    <button class="dl-btn" id="batchSaveBtn" style="display:none">ZIP으로 전체 저장</button>
   </div>
 </div>
 
@@ -971,6 +992,7 @@ let collageImgs = [null, null, null, null];
 let collageTitles = ['', '', '', ''];
 let collageWaters = ['', '', '', ''];
 let collageUploadTarget = 0;
+let batchImgs = []; // [{img: Image, name: string}]
 let bgTab = 'gradient';
 let currentGradient = 0;
 let currentRatio = 'free';
@@ -1034,13 +1056,17 @@ function setMode(mode) {
   appMode = mode;
   document.getElementById('tab-mode-single').classList.toggle('on', mode === 'single');
   document.getElementById('tab-mode-collage').classList.toggle('on', mode === 'collage');
+  document.getElementById('tab-mode-batch').classList.toggle('on', mode === 'batch');
   document.getElementById('single-upload').style.display = mode === 'single' ? 'block' : 'none';
   document.getElementById('collage-upload').style.display = mode === 'collage' ? 'block' : 'none';
+  document.getElementById('batch-upload').style.display = mode === 'batch' ? 'block' : 'none';
   document.getElementById('gap-row').style.display = mode === 'collage' ? 'flex' : 'none';
   document.getElementById('cropBtnRow').style.display = (mode === 'single' && img) ? 'flex' : 'none';
   document.getElementById('imgRemoveBtn').style.display = (mode === 'single' && img) ? 'flex' : 'none';
-  document.getElementById('single-text-inputs').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('single-text-inputs').style.display = (mode === 'single' || mode === 'batch') ? 'block' : 'none';
   document.getElementById('collage-text-area').style.display = mode === 'collage' ? 'block' : 'none';
+  document.getElementById('dlBtn').style.display = mode !== 'batch' ? 'flex' : 'none';
+  document.getElementById('batchSaveBtn').style.display = mode === 'batch' ? 'flex' : 'none';
   if (mode === 'collage') updateCollageTextSection();
   render();
 }
@@ -1474,10 +1500,123 @@ function drawOverlayText(title, water, cx, cy, imgW, imgH) {
   }
 }
 
+// ── Batch mode ────────────────────────────────────────
+function refreshBatchList() {
+  const list = document.getElementById('batch-list');
+  const count = document.getElementById('batch-count');
+  list.innerHTML = '';
+  batchImgs.forEach(({ img: im, name }, i) => {
+    const item = document.createElement('div');
+    item.className = 'batch-item';
+    const thumb = document.createElement('img');
+    thumb.className = 'batch-thumb';
+    thumb.src = im.src;
+    const nameEl = document.createElement('span');
+    nameEl.className = 'batch-name';
+    nameEl.textContent = name;
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'batch-remove';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => { batchImgs.splice(i, 1); refreshBatchList(); renderBatch(); };
+    item.append(thumb, nameEl, removeBtn);
+    list.appendChild(item);
+  });
+  if (batchImgs.length > 0) {
+    count.style.display = 'block';
+    count.textContent = `총 ${batchImgs.length}장`;
+  } else {
+    count.style.display = 'none';
+  }
+}
+
+function loadBatchFiles(files) {
+  let loaded = 0;
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const r = new FileReader();
+    r.onload = e => {
+      const im = new Image();
+      im.onload = () => {
+        batchImgs.push({ img: im, name: file.name });
+        loaded++;
+        if (loaded === files.length) { refreshBatchList(); renderBatch(); }
+      };
+      im.src = e.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+function renderBatch() {
+  if (batchImgs.length === 0) return;
+  // 첫 번째 이미지를 미리보기로 표시
+  const savedImg = img;
+  img = batchImgs[0].img;
+  showCanvas();
+  renderSingle();
+  img = savedImg;
+}
+
+async function renderImageToBlob(image) {
+  const savedImg = img;
+  const savedMode = appMode;
+  appMode = 'single';
+  img = image;
+  renderSingle();
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  appMode = savedMode;
+  img = savedImg;
+  return blob;
+}
+
+async function saveBatchAll() {
+  if (batchImgs.length === 0) { alert('이미지를 먼저 업로드해주세요.'); return; }
+  const btn = document.getElementById('batchSaveBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  try {
+    if (!window.JSZip) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    const zip = new JSZip();
+    for (let i = 0; i < batchImgs.length; i++) {
+      btn.textContent = `처리 중... (${i + 1}/${batchImgs.length})`;
+      const { img: im, name } = batchImgs[i];
+      const blob = await renderImageToBlob(im);
+      zip.file(name.replace(/\.[^.]+$/, '') + '_beautified.png', blob);
+    }
+    btn.textContent = 'ZIP 생성 중...';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `beautified_${Date.now()}.zip`; a.click();
+    URL.revokeObjectURL(url);
+    renderBatch(); // 미리보기 복원
+  } catch (e) {
+    alert('저장 실패: ' + (e.message || String(e)));
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('batch-zone').onclick = () => document.getElementById('fi-batch').click();
+document.getElementById('fi-batch').onchange = e => { loadBatchFiles(e.target.files); e.target.value = ''; };
+document.getElementById('batch-zone').ondragover = e => { e.preventDefault(); document.getElementById('batch-zone').classList.add('drag-over'); };
+document.getElementById('batch-zone').ondragleave = () => document.getElementById('batch-zone').classList.remove('drag-over');
+document.getElementById('batch-zone').ondrop = e => { e.preventDefault(); document.getElementById('batch-zone').classList.remove('drag-over'); loadBatchFiles(e.dataTransfer.files); };
+document.getElementById('batchSaveBtn').onclick = saveBatchAll;
+
 // ── Render ────────────────────────────────────────────
 function render() {
   if (appMode === 'single') renderSingle();
-  else renderCollage();
+  else if (appMode === 'collage') renderCollage();
+  else if (appMode === 'batch') renderBatch();
 }
 
 function renderSingle() {
