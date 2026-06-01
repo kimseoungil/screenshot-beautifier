@@ -838,8 +838,9 @@ canvas {
         </div>
         <div id="collage-upload" style="display:none">
           <div class="tab-group">
-            <div class="tab on" id="tab-dir-h" onclick="setCollageDir('horizontal')">가로 배열</div>
-            <div class="tab" id="tab-dir-v" onclick="setCollageDir('vertical')">세로 배열</div>
+            <div class="tab on" id="tab-dir-h" onclick="setCollageDir('horizontal')">가로</div>
+            <div class="tab" id="tab-dir-v" onclick="setCollageDir('vertical')">세로</div>
+            <div class="tab" id="tab-dir-g" onclick="setCollageDir('grid')">2×2</div>
           </div>
           <div id="collage-slots" class="collage-grid"></div>
           <input type="file" id="fi-collage" accept="image/*" style="display:none">
@@ -1075,6 +1076,7 @@ function setCollageDir(dir) {
   collageDir = dir;
   document.getElementById('tab-dir-h').classList.toggle('on', dir === 'horizontal');
   document.getElementById('tab-dir-v').classList.toggle('on', dir === 'vertical');
+  document.getElementById('tab-dir-g').classList.toggle('on', dir === 'grid');
   render();
 }
 
@@ -1654,6 +1656,8 @@ function renderCollage() {
 
   if (collageDir === 'vertical') {
     renderCollageVertical(activeSlots);
+  } else if (collageDir === 'grid') {
+    renderCollageGrid(activeSlots);
   } else {
     renderCollageHorizontal(activeSlots);
   }
@@ -1689,6 +1693,55 @@ function renderCollageHorizontal(activeSlots) {
     drawImage(imgs[n], cx, imgY, scaledWidths[n], targetH, rad, sha, str);
     drawOverlayText(collageTitles[si], collageWaters[si], cx + scaledWidths[n] / 2, imgY + targetH / 2, scaledWidths[n], targetH);
     cx += scaledWidths[n] + gap;
+  }
+}
+
+function renderCollageGrid(activeSlots) {
+  const pad = getVal('sPad');
+  const rad = getVal('sRad');
+  const sha = getVal('sSha');
+  const scl = getVal('sScl') / 100;
+  const gap = getVal('sGap');
+  const str = getVal('sStr');
+
+  // 첫 번째 이미지 기준으로 셀 크기 결정
+  const refImg = collageImgs[activeSlots[0]];
+  const cellW = Math.round(refImg.width * scl);
+  const cellH = Math.round(refImg.height * scl);
+
+  // 2열 2행 고정
+  const cols = 2, rows = 2;
+  let cW = cellW * cols + gap * (cols - 1) + pad * 2;
+  let cH = cellH * rows + gap * (rows - 1) + pad * 2;
+  ({ cW, cH } = applyRatio(cW, cH));
+
+  canvas.width = cW;
+  canvas.height = cH;
+  applyBackground(cW, cH);
+
+  // 전체 그리드를 캔버스 중앙에 배치
+  const gridW = cellW * cols + gap * (cols - 1);
+  const gridH = cellH * rows + gap * (rows - 1);
+  const startX = Math.round((cW - gridW) / 2);
+  const startY = Math.round((cH - gridH) / 2);
+
+  for (let n = 0; n < Math.min(activeSlots.length, 4); n++) {
+    const si = activeSlots[n];
+    const col = n % cols;
+    const row = Math.floor(n / cols);
+    const ix = startX + col * (cellW + gap);
+    const iy = startY + row * (cellH + gap);
+
+    // 이미지 비율 유지하며 셀에 맞게 축소
+    const im = collageImgs[si];
+    const scale = Math.min(cellW / im.width, cellH / im.height);
+    const iw = Math.round(im.width * scale);
+    const ih = Math.round(im.height * scale);
+    const ox = ix + Math.round((cellW - iw) / 2);
+    const oy = iy + Math.round((cellH - ih) / 2);
+
+    drawImage(im, ox, oy, iw, ih, rad, sha, str);
+    drawOverlayText(collageTitles[si], collageWaters[si], ox + iw / 2, oy + ih / 2, iw, ih);
   }
 }
 
